@@ -27,7 +27,7 @@ class ChatResponse(BaseModel):
     created: int = Field(..., description="Creation timestamp")
     model: str = Field(..., description="Model used")
     choices: List[Dict[str, Any]] = Field(..., description="Response choices")
-    usage: Optional[Dict[str, int]] = Field(default=None, description="Token usage information")
+    usage: Optional[Dict[str, Any]] = Field(default=None, description="Token usage information")
 
 
 class ModelInfo(BaseModel):

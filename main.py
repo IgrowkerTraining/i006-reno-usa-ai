@@ -10,6 +10,7 @@ from app.core.logging import setup_logging, get_logger
 from app.api.v1 import api_router
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
+from app.core.database import test_db_connection
 
 # Setup logging
 setup_logging()
@@ -21,6 +22,8 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
+    test_db_connection()
+
     yield
     # Shutdown
     await ai_service.close()
