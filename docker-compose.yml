@@ -5,8 +5,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      - OPENROUTER_API_KEY=${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}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       - APP_NAME=${APP_NAME:-FastAPI AI Template}
       - APP_VERSION=${APP_VERSION:-1.0.0}
