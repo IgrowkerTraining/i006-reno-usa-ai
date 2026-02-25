@@ -7,17 +7,33 @@ from datetime import datetime
 
 class ChatMessage(BaseModel):
     """Chat message model."""
-    role: str = Field(..., description="Message role: 'user', 'assistant', or 'system'")
-    content: str = Field(..., description="Message content")
-
+    role: str = Field(default="user", description="Message role: 'user', 'assistant', or 'system'")
+    content: str = Field(..., description="Message content", examples=["Hola todo bien?"])
 
 class ChatRequest(BaseModel):
     """Chat completion request model."""
-    model: str = Field(default="openai/gpt-3.5-turbo", description="AI model to use")
+    model: str = Field(default="arcee-ai/trinity-large-preview:free", description="AI model to use")
     messages: List[ChatMessage] = Field(..., description="List of chat messages")
     max_tokens: Optional[int] = Field(default=1000, ge=1, le=4096, description="Maximum tokens to generate")
     temperature: Optional[float] = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
     stream: Optional[bool] = Field(default=False, description="Enable streaming response")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "model": "arcee-ai/trinity-large-preview:free",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "Hola todo bien?"
+                    }
+                ],
+                "max_tokens": 1000,
+                "temperature": 0.7,
+                "stream": False
+            }
+        }
+    }
 
 
 class ChatResponse(BaseModel):
@@ -27,7 +43,7 @@ class ChatResponse(BaseModel):
     created: int = Field(..., description="Creation timestamp")
     model: str = Field(..., description="Model used")
     choices: List[Dict[str, Any]] = Field(..., description="Response choices")
-    usage: Optional[Dict[str, int]] = Field(default=None, description="Token usage information")
+    usage: Optional[Dict[str, Any]] = Field(default=None, description="Token usage information")
 
 
 class ModelInfo(BaseModel):
