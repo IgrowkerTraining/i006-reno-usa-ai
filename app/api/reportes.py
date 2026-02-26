@@ -8,6 +8,8 @@ from app.models.reporte_generado import GenerateAnalysisRequest, ReporteGenerado
 
 from app.services.reporte_service import ReporteService
 
+from app.services.log_service import LogService
+
 
 router = APIRouter(prefix="/reportes", tags=["Reportes Generados"])
 
@@ -34,7 +36,7 @@ def crear_reporte_analisis(
             "risk_level": "low"
         }
         
-        # Usamos tu ReporteService para guardarlo en PostgreSQL
+        # Usamos ReporteService para guardarlo en PostgreSQL
         nuevo_reporte = servicio.guardar_reporte(
             project_id=request.snapshot.project_code,       
             fase_analizada=request.snapshot.current_phase,  
@@ -42,6 +44,16 @@ def crear_reporte_analisis(
             output_analisis=analisis_simulado,
             modelo_utilizado="arcee-ai/trinity-large-preview:free",
             prompt_version_id=1 
+        )
+        
+        log_servicio = LogService(db)
+        log_servicio.registrar_metrica_ia(
+            status_code=200,
+            reporte_id=nuevo_reporte.id,  
+            tokens_entrada=450,           # Simulamos que el prompt gastó 450 tokens
+            tokens_salida=1200,           # Simulamos que la respuesta gastó 1200 tokens
+            costo_estimado=0.0035,        # Costo en dólares
+            tiempo_ejecucion_ms=2450      # Tardó 2.4 segundos
         )
         
         return nuevo_reporte

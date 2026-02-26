@@ -9,11 +9,13 @@ from app.config.settings import settings
 from app.core.logging import setup_logging, get_logger
 from app.api.v1 import api_router
 from app.api import reportes
+from app.api import logs
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
 from app.core.database import test_db_connection
 from app.core.database import engine, Base
 from app.db.models.reporte import ReporteGeneradoDB
+from app.db.models.log_peticion import LogPeticionDB
 
 # Setup logging
 setup_logging()
@@ -58,6 +60,7 @@ app.add_middleware(
 # Include API routers
 app.include_router(api_router)
 app.include_router(reportes.router, prefix="/api/v1")
+app.include_router(logs.router, prefix="/api/v1")
 
 
 @app.get("/", response_model=RootResponse)
