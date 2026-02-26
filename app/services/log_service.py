@@ -22,6 +22,12 @@ class LogService:
         self.db.commit()
         self.db.refresh(nuevo_log)
         return nuevo_log
+    
+    def obtener_metrica_por_reporte(self, reporte_id: UUID):
+        """
+        Busca el log exacto de consumo para un reporte específico.
+        """
+        return self.db.query(LogPeticionDB).filter(LogPeticionDB.reporte_id == reporte_id).first()
 
     def obtener_metricas(self, limite: int = 50):
         return self.db.query(LogPeticionDB).order_by(LogPeticionDB.fecha_evento.desc()).limit(limite).all()
