@@ -11,6 +11,16 @@ from app.config.settings import settings
 from app.models.schemas import ChatRequest, ChatResponse, ModelInfo
 from app.core.logging import get_logger
 from app.core.security import mask_api_key
+from pydantic import BaseModel, ValidationError
+
+class AnalisisIAEsperado(BaseModel):
+    general_project_status: str
+    execution_schedule_analysis: str
+    safety_compliance_analysis: str
+    technical_approvals_analysis: str
+    overall_observation: str
+    risk_level: str
+    detected_inconsistencies: list[str]
 
 logger = get_logger(__name__)
 
@@ -112,7 +122,6 @@ class AIService:
             tiempo_ejecucion = int((fin_ms - inicio_ms) * 1000)
 
             data = response.json()
-            
             modelo_real = data.get("model", modelo)
             tokens_entrada = data.get("usage", {}).get("prompt_tokens", 0)
             tokens_salida = data.get("usage", {}).get("completion_tokens", 0)
@@ -120,18 +129,23 @@ class AIService:
             raw_content = data["choices"][0]["message"]["content"]
             clean_content = raw_content.strip().strip("```json").strip("```").strip()
             
+            # 1. Validar que sea JSON
             try:
-                analisis_json = json.loads(clean_content)
-                logger.info("Análisis de obra parseado exitosamente.")
+                analisis_raw = json.loads(clean_content)
             except json.JSONDecodeError:
-                error_msg = f"La IA no devolvió un JSON válido. Respuesta: {raw_content}"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
+                raise ValueError("La IA no devolvió un formato JSON válido.")
+                
+            # 2. Validar ESTRUCTURA (Si falta un campo, Pydantic tira ValidationError)
+            try:
+                analisis_validado = AnalisisIAEsperado(**analisis_raw).model_dump()
+            except ValidationError as e:
+                logger.error(f"Estructura incorrecta de la IA: {e}")
+                raise ValueError(f"La IA omitió campos o inventó nuevos. Detalle: {e.error_count()} errores encontrados.")
 
             costo_total = (tokens_entrada * 0.0001) + (tokens_salida * 0.0002)
 
             return {
-                "analisis": analisis_json,
+                "analisis": analisis_validado,
                 "modelo_utilizado": modelo_real,
                 "metricas": {
                     "tokens_entrada": tokens_entrada,
@@ -142,19 +156,26 @@ class AIService:
                 }
             }
 
+        # --- MANEJO DE ERRORES EXTERNOS ---
+        except httpx.TimeoutException:
+            logger.error("OpenRouter tardó demasiado en responder.")
+            raise RuntimeError("Timeout: El servicio de IA tardó demasiado en responder.")
+            
         except httpx.HTTPStatusError as e:
-            error_msg = f"OpenRouter API error: {e.response.status_code} - {e.response.text}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        except Exception as e:
-            error_msg = f"Error general llamando a OpenRouter: {str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-
+            status = e.response.status_code
+            if status == 402:
+                raise RuntimeError("Sin saldo: La cuenta de OpenRouter no tiene créditos suficientes.")
+            elif status == 429:
+                raise RuntimeError("Rate Limit: Demasiadas peticiones a OpenRouter. Intente más tarde.")
+            else:
+                raise RuntimeError(f"Error en OpenRouter ({status}): {e.response.text}")
+                
+        except httpx.RequestError as e:
+            logger.error(f"Error de red contactando a OpenRouter: {e}")
+            raise RuntimeError("Error de red: No se pudo conectar con el servicio de IA.")
 
     async def list_models(self) -> List[ModelInfo]:
         """List available models from OpenRouter."""
-        # ... (código original intacto)
         try:
             logger.info("Fetching available models from OpenRouter")
             response = await self.client.get("/models")

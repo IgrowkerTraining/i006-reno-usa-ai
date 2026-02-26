@@ -68,13 +68,20 @@ async def crear_reporte_analisis(
         return nuevo_reporte
 
     except ValueError as ve:
-        # Si la IA falló formateando el JSON, lo avisamos con un error 422
+        # Error 422: La IA devolvió cualquier cosa menos la estructura correcta
         raise HTTPException(status_code=422, detail=str(ve))
+        
+    except RuntimeError as re:
+        # Error 502/504: Problemas de red, de saldo o de OpenRouter caído
+        log_servicio = LogService(db)
+        log_servicio.registrar_metrica_ia(status_code=502, tiempo_ejecucion_ms=0)
+        raise HTTPException(status_code=502, detail=str(re))
+        
     except Exception as e:
-        # Si algo más explota, guardamos un log fallido por las dudas
+        # Error 500: Falló nuestro código interno (Base de datos, etc)
         log_servicio = LogService(db)
         log_servicio.registrar_metrica_ia(status_code=500, tiempo_ejecucion_ms=0)
-        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
 
 @router.get("/{reporte_id}", response_model=ReporteGeneradoResponse)
