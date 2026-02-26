@@ -10,56 +10,71 @@ from app.services.reporte_service import ReporteService
 
 from app.services.log_service import LogService
 
+from app.services.ai_service import ai_service
+
 
 router = APIRouter(prefix="/reportes", tags=["Reportes Generados"])
 
-
-@router.post("/", response_model=ReporteGeneradoResponse)
-def crear_reporte_analisis(
+@router.post(
+    "/", 
+    response_model=ReporteGeneradoResponse,
+    summary="Generar y guardar un nuevo análisis de obra",
+    description="""
+    Recibe un **Snapshot** (la foto actual) con los datos de una obra en curso. 
+    Envía estos datos a la IA (por ahora) para analizar métricas, detectar riesgos y validar tiempos.
+    Finalmente, guarda todo el registro (entrada y salida) en la base de datos PostgreSQL 
+    y registra automáticamente el consumo de tokens en el log del sistema.
+    """,
+    response_description="El reporte guardado con su UUID y el análisis de la IA."
+)
+async def crear_reporte_analisis(
     request: GenerateAnalysisRequest, 
     db: Session = Depends(get_db)
 ):
     """
-    Recibe un snapshot, lo analiza con IA (simulado por ahora), y lo guarda en la BD.
+    Recibe un snapshot, lo analiza con IA, y lo guarda en la BD.
     """
     servicio = ReporteService(db)
     
     try:
-        # ACA IRÍA LA LLAMADA A EL SERVICIO DE IA (OpenRouter)
-        analisis_simulado = {
-            "general_project_status": "El proyecto avanza según lo esperado en la fase actual.",
-            "execution_schedule_analysis": "Desviación menor, pero dentro del margen histórico aceptable.",
-            "safety_compliance_analysis": "Se reportan medidas de seguridad y pólizas activas.",
-            "technical_approvals_analysis": "Aprobación técnica vigente sin discrepancias.",
-            "overall_observation": "El proyecto se encuentra estable, con un riesgo operativo bajo y sin problemas críticos a la vista en esta fase de la obra.", # 👈 ESTA ES LA LÍNEA NUEVA
-            "detected_inconsistencies": [],
-            "risk_level": "low"
-        }
+        # 1. Llamamos a la IA pasándole el JSON puro de la obra
+        resultado_ia = await ai_service.analizar_obra(
+            snapshot_data=request.snapshot.model_dump(mode='json'),
+        )
         
-        # Usamos ReporteService para guardarlo en PostgreSQL
-        nuevo_reporte = servicio.guardar_reporte(
+        # 2. Guardamos en BD el reporte con la respuesta REAL de la IA
+        rep_servicio = ReporteService(db)
+        nuevo_reporte = rep_servicio.guardar_reporte(
             project_id=request.snapshot.project_code,       
             fase_analizada=request.snapshot.current_phase,  
-            input_snapshot=request.model_dump(mode='json'),          
-            output_analisis=analisis_simulado,
-            modelo_utilizado="arcee-ai/trinity-large-preview:free",
+            input_snapshot=request.model_dump(mode='json'), 
+            output_analisis=resultado_ia["analisis"],
+            modelo_utilizado=resultado_ia["modelo_utilizado"],
             prompt_version_id=1 
         )
-        
+
+        # 3. Guardamos los logs reales de consumo y tiempo
         log_servicio = LogService(db)
+        metricas = resultado_ia["metricas"]
         log_servicio.registrar_metrica_ia(
-            status_code=200,
-            reporte_id=nuevo_reporte.id,  
-            tokens_entrada=450,           # Simulamos que el prompt gastó 450 tokens
-            tokens_salida=1200,           # Simulamos que la respuesta gastó 1200 tokens
-            costo_estimado=0.0035,        # Costo en dólares
-            tiempo_ejecucion_ms=2450      # Tardó 2.4 segundos
+            status_code=metricas["status_code"],
+            reporte_id=nuevo_reporte.id, 
+            tokens_entrada=metricas["tokens_entrada"],
+            tokens_salida=metricas["tokens_salida"],
+            costo_estimado=metricas["costo_estimado"],
+            tiempo_ejecucion_ms=metricas["tiempo_ejecucion_ms"]
         )
-        
+
         return nuevo_reporte
-        
+
+    except ValueError as ve:
+        # Si la IA falló formateando el JSON, lo avisamos con un error 422
+        raise HTTPException(status_code=422, detail=str(ve))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al guardar el reporte: {str(e)}")
+        # Si algo más explota, guardamos un log fallido por las dudas
+        log_servicio = LogService(db)
+        log_servicio.registrar_metrica_ia(status_code=500, tiempo_ejecucion_ms=0)
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
 @router.get("/{reporte_id}", response_model=ReporteGeneradoResponse)
