@@ -1,7 +1,7 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
-
+from sqlalchemy.orm import sessionmaker, declarative_base
 # Lee la URL que le pasa Docker (o usa una por defecto por seguridad)
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
@@ -11,6 +11,21 @@ DATABASE_URL = os.getenv(
 # Creamos el motor de conexión
 engine = create_engine(DATABASE_URL)
 
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
+
+def get_db():
+    """
+    Abre una conexión fresca a Postgres para cada petición, y se asegura 
+    de cerrarla al final (incluso si hay un error) gracias al 'finally'.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        
 # Función para probar que todo ande bien
 def test_db_connection():
     try:
