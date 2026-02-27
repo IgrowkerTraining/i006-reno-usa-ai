@@ -2,6 +2,8 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker, declarative_base
+
+
 # Lee la URL que le pasa Docker (o usa una por defecto por seguridad)
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
@@ -34,3 +36,4 @@ def test_db_connection():
             print("🟢 ¡ÉXITO! Conectado a la base de datos PostgreSQL en Docker.")
     except OperationalError as e:
         print(f"🔴 ERROR: No se pudo conectar a la base de datos. Detalle: {e}")
+

@@ -11,6 +11,9 @@ from app.api.v1 import api_router
 from app.models.schemas import RootResponse
 from app.services.ai_service import ai_service
 from app.core.database import test_db_connection
+from app.core.database import engine, Base
+from app.db.prompt_template_models import PromptTemplateModel
+
 
 # Setup logging
 setup_logging()
@@ -23,6 +26,10 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
     test_db_connection()
+
+    Base.metadata.create_all(bind=engine)
+    logger.info("📦 Tablas verificadas/creadas correctamente")
+
 
     yield
     # Shutdown
@@ -52,7 +59,6 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(api_router)
-
 
 @app.get("/", response_model=RootResponse)
 async def read_root():
