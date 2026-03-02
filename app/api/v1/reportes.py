@@ -40,6 +40,7 @@ async def crear_reporte_analisis(
         # 1. Llamamos a la IA pasándole el JSON puro de la obra
         resultado_ia = await ai_service.analizar_obra(
             snapshot_data=request.snapshot.model_dump(mode='json'),
+            db=db
         )
         
         # 2. Guardamos en BD el reporte con la respuesta REAL de la IA
@@ -47,10 +48,10 @@ async def crear_reporte_analisis(
         nuevo_reporte = rep_servicio.guardar_reporte(
             project_id=request.snapshot.project_code,       
             fase_analizada=request.snapshot.current_phase,  
-            input_snapshot=request.model_dump(mode='json'), 
+            input_snapshot=request.model_dump(mode='json'),
             output_analisis=resultado_ia["analisis"],
             modelo_utilizado=resultado_ia["modelo_utilizado"],
-            prompt_version_id=1 
+            prompt_version_id=resultado_ia["prompt_version_id"] 
         )
 
         # 3. Guardamos los logs reales de consumo y tiempo

@@ -93,11 +93,6 @@ class GenerateAnalysisRequest(BaseModel):
         ..., 
         description="Snapshot del proyecto a analizar"
     )
-    prompt_template_name: str | None = Field(
-        None,
-        description="Nombre del prompt template a usar (usa el activo por defecto si no se especifica)"
-    )
-
 
 class GenerateAnalysisResponse(BaseModel):
     """

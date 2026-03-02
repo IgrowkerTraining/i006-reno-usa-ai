@@ -12,6 +12,8 @@ from app.models.schemas import ChatRequest, ChatResponse, ModelInfo
 from app.core.logging import get_logger
 from app.core.security import mask_api_key
 from pydantic import BaseModel, ValidationError
+from sqlalchemy.orm import Session
+from app.services.prompt_template_service import PromptTemplateService
 
 class AnalisisIAEsperado(BaseModel):
     general_project_status: str
@@ -83,26 +85,22 @@ class AIService:
             raise Exception(error_msg)
     
 
-    async def analizar_obra(self, snapshot_data: dict, modelo: str = "arcee-ai/trinity-large-preview:free") -> dict:
+    async def analizar_obra(self, snapshot_data: dict, db: Session, modelo: str = "arcee-ai/trinity-large-preview:free") -> dict:
         """
-        Envía el snapshot de la obra a la IA y fuerza una respuesta en formato JSON estricto.
+        Envía el snapshot de la obra a la IA usando el prompt dinámico de la BD.
         Devuelve el análisis y las métricas de consumo de OpenRouter.
         """
-        prompt_sistema = """
-        Eres un auditor experto en obras de construcción. 
-        Analiza el siguiente snapshot de datos de un proyecto y devuelve ÚNICAMENTE un objeto JSON válido.
-        El JSON debe cumplir ESTRICTAMENTE con esta estructura (sin texto extra, sin saludos, sin bloques markdown de código):
-        {
-            "general_project_status": "texto descriptivo",
-            "execution_schedule_analysis": "texto descriptivo",
-            "safety_compliance_analysis": "texto descriptivo",
-            "technical_approvals_analysis": "texto descriptivo",
-            "overall_observation": "observación general detallada que obligatoriamente DEBE TENER MÁS DE 50 CARACTERES.",
-            "risk_level": "low", "medium" o "high",
-            "detected_inconsistencies": ["inconsistencia 1"] o [] si no hay
-        }
-        """
+        
+        # 1. Buscamos el prompt activo (las reglas) en la base de datos
+        prompt_activo = PromptTemplateService.get_active_prompt(db)
+        
+        if not prompt_activo:
+            raise ValueError("No hay ningún prompt activo en la base de datos. Por favor, crea uno primero.")
+            
+        prompt_sistema = prompt_activo.template_text
+        version_usada = prompt_activo.version
 
+        # 2. Armamos el payload SEPARANDO las reglas (System) de los datos (User)
         payload = {
             "model": modelo,
             "messages": [
@@ -135,7 +133,7 @@ class AIService:
             except json.JSONDecodeError:
                 raise ValueError("La IA no devolvió un formato JSON válido.")
                 
-            # 2. Validar ESTRUCTURA (Si falta un campo, Pydantic tira ValidationError)
+            # 2. Validar ESTRUCTURA
             try:
                 analisis_validado = AnalisisIAEsperado(**analisis_raw).model_dump()
             except ValidationError as e:
@@ -153,7 +151,8 @@ class AIService:
                     "tiempo_ejecucion_ms": tiempo_ejecucion,
                     "costo_estimado": costo_total,
                     "status_code": response.status_code
-                }
+                },
+                "prompt_version_id": version_usada
             }
 
         # --- MANEJO DE ERRORES EXTERNOS ---
