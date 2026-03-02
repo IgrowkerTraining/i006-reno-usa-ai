@@ -27,7 +27,7 @@ El flujo interactúa secuencialmente con tres tablas de nuestra base de datos Po
 3. Se realiza una petición HTTP asíncrona a la API externa de OpenRouter.
 
 ### Paso 4: Recepción, Limpieza y Validación Estricta
-1. OpenRouter devuelve la respuesta. [cite_start]Se detiene el cronómetro y se calcula el `tiempo_ejecucion_ms`.
+1. OpenRouter devuelve la respuesta. Se detiene el cronómetro y se calcula el `tiempo_ejecucion_ms`.
 2. Se extraen los metadatos de consumo: `tokens_entrada`, `tokens_salida` y el `modelo_utilizado` real.
 3. El texto de la respuesta se "limpia" de posibles formatos Markdown (ej: ````json ... ````).
 4. **Fail Fast (Validación de Salida):** El texto limpio se pasa por un validador estricto de Pydantic. Se verifica que sea un JSON válido y que contenga todos los campos obligatorios del análisis.
@@ -39,9 +39,9 @@ El flujo interactúa secuencialmente con tres tablas de nuestra base de datos Po
 3. Se guarda el JSON original en `input_snapshot`, el JSON de la IA en `output_analisis`, y se asocia la petición con el `prompt_version_id`.
 
 ### Paso 6: Registro de Métricas y Auditoría
-1. [cite_start]Inmediatamente después, se crea un registro en la tabla `log_peticiones`.
-2. [cite_start]Se vincula este log al reporte recién creado mediante el `reporte_id`.
-3. [cite_start]Se guardan las métricas: `tiempo_ejecucion_ms`, `tokens_entrada`, `tokens_salida`, `status_code` y se calcula el `costo_estimado`.
+1. Inmediatamente después, se crea un registro en la tabla `log_peticiones`.
+2. Se vincula este log al reporte recién creado mediante el `reporte_id`.
+3. Se guardan las métricas: `tiempo_ejecucion_ms`, `tokens_entrada`, `tokens_salida`, `status_code` y se calcula el `costo_estimado`.
 
 ### Paso 7: Respuesta al Backend Principal
 1. El flujo interno finaliza exitosamente.
