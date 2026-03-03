@@ -1,6 +1,6 @@
 """Application settings and configuration."""
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 
@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     openrouter_api_key: str
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     
+    # --- Database Configuration ---
+    # DATABASE_URL es la que usará SQLAlchemy para la conexión
+    database_url: str
+    postgres_user: Optional[str] = None
+    postgres_password: Optional[str] = None
+    postgres_db: Optional[str] = None
+    
     # API Configuration
     api_host: str = "0.0.0.0"
     api_port: int = 8000
@@ -28,9 +35,12 @@ class Settings(BaseSettings):
     # Logging Configuration
     log_level: str = "INFO"
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    # Usamos model_config para leer el .env
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore" 
+    )
 
 
 # Global settings instance
