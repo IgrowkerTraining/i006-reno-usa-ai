@@ -61,14 +61,31 @@ async def crear_reporte_analisis(
     Recibe un snapshot, lo analiza con IA, lo guarda en la BD y devuelve una respuesta limpia.
     """
     try:
-        # 1. Llamamos a la IA pasándole el JSON puro de la obra
+        rep_servicio = ReporteService(db)
+        
+        # Verificar si existe un reporte anterior para este proyecto
+        ultimo_reporte = rep_servicio.obtener_ultimo_reporte(request.snapshot.project_code)
+        
+        if ultimo_reporte:
+            # Extraer el snapshot del input_snapshot guardado
+            snapshot_viejo = ultimo_reporte.input_snapshot.get('snapshot', {})
+            snapshot_nuevo = request.snapshot.model_dump(mode='json')
+            
+            # Comparar snapshots
+            if rep_servicio.snapshots_son_iguales(snapshot_viejo, snapshot_nuevo):
+                # Devolver análisis guardado sin generar uno nuevo
+                return {
+                    "id": ultimo_reporte.id,
+                    "analisis": ultimo_reporte.output_analisis
+                }
+        
+        # Generar nuevo análisis si no existe reporte previo o si el snapshot cambió
         resultado_ia = await ai_service.analizar_obra(
             snapshot_data=request.snapshot.model_dump(mode='json'),
             db=db
         )
         
-        # 2. Guardamos en BD el reporte con la respuesta REAL de la IA
-        rep_servicio = ReporteService(db)
+        # Guardar reporte en base de datos
         nuevo_reporte = rep_servicio.guardar_reporte(
             project_id=request.snapshot.project_code,       
             fase_analizada=request.snapshot.current_phase,  
@@ -78,7 +95,7 @@ async def crear_reporte_analisis(
             prompt_version_id=resultado_ia["prompt_version_id"] 
         )
 
-        # 3. Guardamos los logs reales de consumo y tiempo
+        # Registrar métricas de la petición
         log_servicio = LogService(db)
         metricas = resultado_ia["metricas"]
         log_servicio.registrar_metrica_ia(
@@ -90,7 +107,6 @@ async def crear_reporte_analisis(
             tiempo_ejecucion_ms=metricas["tiempo_ejecucion_ms"]
         )
 
-        # 4. Devolvemos la respuesta que ahora FastAPI validará contra el modelo
         return {
             "id": nuevo_reporte.id,
             "analisis": nuevo_reporte.output_analisis
