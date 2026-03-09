@@ -1,69 +1,82 @@
 """
 Schemas para Analysis Output
-Estructura del análisis generado por la IA
+Estructura matemática del análisis generado por la IA para el Dashboard
 """
 
 from typing import List
 from pydantic import BaseModel, Field
 
-from .enums import RiskLevel
-
-
 class AnalysisOutput(BaseModel):
     """
     Resultado del análisis generado por la IA.
-    Este es el output estructurado que devuelve OpenRouter después de procesar.
+    Este es el output estructurado matemático que devuelve el modelo para armar la UI.
     """
     
-    general_project_status: str = Field(
+    # --- Progress Metrics ---
+    advancePercentage: int = Field(
         ..., 
-        min_length=50,
-        description="Resumen general del estado del proyecto en el período analizado"
+        description="Integer percentage of overall progress (completed tasks / total tasks) * 100. Returns 0 if there are no tasks."
+    )
+    completedTasksCount: int = Field(
+        ..., 
+        description="Total absolute count of completed tasks in the project."
+    )
+    uncompletedTasksCount: int = Field(
+        ..., 
+        description="Total absolute count of uncompleted tasks (pending or in_progress) in the project."
     )
     
-    execution_schedule_analysis: str = Field(
-        ...,
-        min_length=50,
-        description="Análisis detallado de la ejecución y el cumplimiento del cronograma"
+    # --- Active Phase details ---
+    inProcessTasks: List[str] = Field(
+        default_factory=list, 
+        description="List of names of the tasks that are 'pending' or 'in_progress' specifically in the currently active phase."
     )
     
-    safety_compliance_analysis: str = Field(
-        ...,
-        min_length=50,
-        description="Análisis del cumplimiento de medidas de seguridad y normativas"
+    # --- Incidence Metrics (Percentages and absolute counts) ---
+    safetyPercent: int = Field(
+        ..., 
+        description="Integer percentage of SAFETY incidences over the total number of tasks."
+    )
+    safetyCount: int = Field(
+        ..., 
+        description="Total absolute count of active SAFETY incidences."
     )
     
-    technical_approvals_analysis: str = Field(
-        ...,
-        min_length=30,
-        description="Análisis de las aprobaciones técnicas y validaciones profesionales"
+    electricalPercent: int = Field(
+        ..., 
+        description="Integer percentage of ELECTRICAL incidences over the total number of tasks."
+    )
+    electricalCount: int = Field(
+        ..., 
+        description="Total absolute count of active ELECTRICAL incidences."
     )
     
-    overall_observation: str = Field(
-        ...,
-        min_length=50,
-        description="Observación general consolidada del proyecto"
+    correctionPercent: int = Field(
+        ..., 
+        description="Integer percentage of CORRECTION incidences over the total number of tasks."
     )
-    
-    risk_level: RiskLevel = Field(
-        ...,
-        description="Nivel de riesgo operativo y de cumplimiento identificado"
-    )
-    
-    detected_inconsistencies: List[str] = Field(
-        default_factory=list,
-        description="Lista de inconsistencias o alertas detectadas en el análisis"
+    correctionCount: int = Field(
+        ..., 
+        description="Total absolute count of active CORRECTION incidences."
     )
 
     class Config:
         json_schema_extra = {
             "example": {
-                "general_project_status": "During the analyzed period, the project shows progress consistent with the planned phase of interior framing. The registered tasks align with the expected activities for the current phase, and no critical inconsistencies are identified between active trades and executed work.",
-                "execution_schedule_analysis": "The declared phase completion of 60% reflects a minor deviation from the original schedule, with a reported delay of one day due to material delivery. Historical patterns indicate that delays of this type and duration are common in similar project phases and do not represent a critical risk at this stage.",
-                "safety_compliance_analysis": "The safety measures declared for the period are consistent with the type of work performed and the trades present on site. Required personal protective equipment and fall protection measures are reported as implemented. Worker coverage is declared as active under a Workers' Compensation policy. No safety-related incidents are reported for the analyzed period.",
-                "technical_approvals_analysis": "The current project phase is marked as approved by the assigned licensed professional. No discrepancies are detected between the recorded execution data and the technical approval status.",
-                "overall_observation": "Based on the information recorded, the project presents a stable operational state for the analyzed period. The combination of minor schedule deviation, consistent safety reporting and valid technical approval indicates low operational and compliance risk at this time.",
-                "risk_level": "low",
-                "detected_inconsistencies": []
+                "advancePercentage": 65,
+                "completedTasksCount": 65,
+                "uncompletedTasksCount": 35,
+                "inProcessTasks": [
+                    "Project Planning", 
+                    "Electrical Installation", 
+                    "Fire extinguisher service",
+                    "Plumber registration"
+                ],
+                "safetyPercent": 3,
+                "safetyCount": 2,
+                "electricalPercent": 3,
+                "electricalCount": 2,
+                "correctionPercent": 3,
+                "correctionCount": 2
             }
         }

@@ -1,14 +1,14 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime
+from sqlalchemy.sql import func
 from app.core.database import Base
 
 class PromptTemplateDB(Base):
-    """Modelo de base de datos para prompts_templates."""
-    __tablename__ = "prompts_templates"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    nombre_codigo = Column(String(100), nullable=False, unique=True, index=True)
+    __tablename__ = "prompt_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code_name = Column(String(100), nullable=False)          
     version = Column(Integer, nullable=False)
-    template_text = Column(Text, nullable=False)
-    activo = Column(Boolean, default=True, nullable=False, index=True)
-    fecha_creacion = Column(DateTime, default=datetime.utcnow, nullable=False)
+    template_text = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)                 
+    created_at = Column(DateTime(timezone=True), server_default=func.now()) 

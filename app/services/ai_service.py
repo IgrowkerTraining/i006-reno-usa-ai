@@ -16,13 +16,16 @@ from sqlalchemy.orm import Session
 from app.services.prompt_template_service import PromptTemplateService
 
 class AnalisisIAEsperado(BaseModel):
-    general_project_status: str
-    execution_schedule_analysis: str
-    safety_compliance_analysis: str
-    technical_approvals_analysis: str
-    overall_observation: str
-    risk_level: str
-    detected_inconsistencies: list[str]
+    advancePercentage: int
+    completedTasksCount: int
+    uncompletedTasksCount: int
+    inProcessTasks: list[str]
+    safetyPercent: int
+    safetyCount: int
+    electricalPercent: int
+    electricalCount: int
+    correctionPercent: int
+    correctionCount: int
 
 logger = get_logger(__name__)
 
@@ -100,12 +103,47 @@ class AIService:
         prompt_sistema = prompt_activo.template_text
         version_usada = prompt_activo.version
 
-        # 2. Armamos el payload SEPARANDO las reglas (System) de los datos (User)
+        # --- 2. NUEVO: MASTICAMOS LOS DATOS ANTES DE ENVIARLOS ---
+        tasks = snapshot_data.get("tasks_snapshot", [])
+        active_phase = snapshot_data.get("active_phase", "")
+        project_name = snapshot_data.get("project_name", "")
+
+        total_tasks = len(tasks)
+        completed_tasks = sum(1 for t in tasks if t.get("status") == "completed")
+        pending_tasks = total_tasks - completed_tasks
+
+        in_process_task_names = [
+            t.get("name") for t in tasks 
+            if t.get("phase") == active_phase and t.get("status") != "completed"
+        ]
+
+        safety_count = sum(1 for t in tasks if t.get("is_incidence") is True and t.get("category") == "SAFETY")
+        electrical_count = sum(1 for t in tasks if t.get("is_incidence") is True and t.get("category") == "ELECTRICAL")
+        correction_count = sum(1 for t in tasks if t.get("is_incidence") is True and t.get("category") == "CORRECTION")
+
+        datos_procesados = {
+            "project_name": project_name,
+            "active_phase": active_phase,
+            "PRE_CALCULATED_METRICS": {
+                "total_tasks": total_tasks,
+                "completed_tasks": completed_tasks,
+                "pending_tasks": pending_tasks,
+                "in_process_task_names": in_process_task_names,
+                "incidences": {
+                    "safety_count": safety_count,
+                    "electrical_count": electrical_count,
+                    "correction_count": correction_count
+                }
+            }
+        }
+        # ---------------------------------------------------------
+
+        # 3. Armamos el payload con los datos_procesados en lugar del snapshot_data
         payload = {
             "model": modelo,
             "messages": [
                 {"role": "system", "content": prompt_sistema},
-                {"role": "user", "content": f"Snapshot de la obra:\n{json.dumps(snapshot_data, indent=2)}"}
+                {"role": "user", "content": f"Métricas calculadas de la obra:\n{json.dumps(datos_procesados, indent=2)}"}
             ]
         }
 

@@ -15,7 +15,6 @@ class ReporteService:
         """
         Guarda un nuevo reporte de análisis en la base de datos.
         """
-
         nuevo_reporte = ReporteGeneradoDB(
             project_id=project_id,
             fase_analizada=fase_analizada,
@@ -26,9 +25,7 @@ class ReporteService:
         )
         
         self.db.add(nuevo_reporte)
-        
         self.db.commit()
-        
         self.db.refresh(nuevo_reporte)
         
         return nuevo_reporte
@@ -46,12 +43,17 @@ class ReporteService:
         return self.db.query(ReporteGeneradoDB).filter(ReporteGeneradoDB.project_id == project_id).all()
 
     def obtener_ultimo_reporte(self, project_id: str):
-        #funcion para obtener reporte mas reciente#
+        # funcion para obtener reporte mas reciente
         return (
-            self.db.query(ReporteGeneradoDB).filter(ReporteGeneradoDB.project_id == project_id).order_by(ReporteGeneradoDB.fecha_generacion.desc()).first()
+            self.db.query(ReporteGeneradoDB)
+            .filter(ReporteGeneradoDB.project_id == project_id)
+            .order_by(ReporteGeneradoDB.fecha_generacion.desc())
+            .first()
         )
     
-    def comparar_snapshot(self, snapshot_viejo: dict, snapshot_nuevo: dict) -> bool:
+    # 🐛 FIX: Cambiamos el nombre de "comparar_snapshot" a "snapshots_son_iguales" 
+    # para que coincida con lo que tu compañero escribió en el router.
+    def snapshots_son_iguales(self, snapshot_viejo: dict, snapshot_nuevo: dict) -> bool:
         camposIgnorar={'period_start', 'period_end'}
 
         viejo_limpio = {k: v for k, v in snapshot_viejo.items() if k not in camposIgnorar}

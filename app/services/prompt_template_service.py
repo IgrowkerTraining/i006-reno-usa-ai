@@ -19,10 +19,10 @@ class PromptTemplateService:
     def get_active_prompt(db: Session) -> Optional[ActivePromptResponse]:
         """Obtiene el prompt activo en el sistema."""
         active_prompt = db.query(PromptTemplateDB).filter(
-            PromptTemplateDB.activo == True
+            PromptTemplateDB.is_active == True
         ).order_by(
             desc(PromptTemplateDB.version),
-            desc(PromptTemplateDB.fecha_creacion)
+            desc(PromptTemplateDB.created_at)
         ).first()
         
         if not active_prompt:
@@ -34,13 +34,13 @@ class PromptTemplateService:
     def create_prompt_template(db: Session, prompt_data: PromptTemplateCreate) -> PromptTemplateResponse:
         """Crea un nuevo prompt template."""
         existing = db.query(PromptTemplateDB).filter(
-            PromptTemplateDB.nombre_codigo == prompt_data.nombre_codigo
+            PromptTemplateDB.code_name == prompt_data.code_name
         ).first()
         
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Ya existe un prompt template con el código '{prompt_data.nombre_codigo}'"
+                detail=f"Ya existe un prompt template con el código '{prompt_data.code_name}'"
             )
             
         new_prompt = PromptTemplateDB(**prompt_data.model_dump())
@@ -62,9 +62,9 @@ class PromptTemplateService:
         """Obtiene todos los prompt templates."""
         query = db.query(PromptTemplateDB)
         if activo_only:
-            query = query.filter(PromptTemplateDB.activo == True)
+            query = query.filter(PromptTemplateDB.is_active == True)
             
-        prompts = query.order_by(desc(PromptTemplateDB.fecha_creacion)).offset(skip).limit(limit).all()
+        prompts = query.order_by(desc(PromptTemplateDB.created_at)).offset(skip).limit(limit).all()
         return [PromptTemplateListItem.model_validate(p) for p in prompts]
     
     @staticmethod
@@ -89,7 +89,7 @@ class PromptTemplateService:
         if not prompt:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Prompt {prompt_id} no encontrado")
             
-        prompt.activo = False
+        prompt.is_active = False
         db.commit()
         db.refresh(prompt)
         return PromptTemplateResponse.model_validate(prompt)
@@ -102,10 +102,10 @@ class PromptTemplateService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Prompt {prompt_id} no encontrado")
             
         # Desactivar todos los prompts
-        db.query(PromptTemplateDB).update({"activo": False})
+        db.query(PromptTemplateDB).update({"is_active": False})
         
         # Activar el seleccionado
-        prompt.activo = True
+        prompt.is_active = True
         db.commit()
         db.refresh(prompt)
         return PromptTemplateResponse.model_validate(prompt)
@@ -117,7 +117,7 @@ class PromptTemplateService:
         if not prompt:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Prompt {prompt_id} no encontrado")
             
-        if prompt.activo:
+        if prompt.is_active:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail="No se puede eliminar un prompt activo. Desactívalo primero."
