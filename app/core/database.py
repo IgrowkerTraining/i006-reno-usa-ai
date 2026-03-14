@@ -1,21 +1,29 @@
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Lee la URL que le pasa Docker (o usa una por defecto por seguridad)
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql://admin:password123@db-ia:5432/ia_backend_db"
-)
+# Importamos la configuración global que ya procesó el .env
+from app.config.settings import settings 
 
-# Creamos el motor de conexión
-engine = create_engine(DATABASE_URL)
+engine = create_engine(settings.database_url)
 
-# Función para probar que todo ande bien
-def test_db_connection():
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
+
+def get_db():
+    db = SessionLocal()
     try:
-        # Intentamos abrir y cerrar una conexión rápida
+        yield db
+    finally:
+        db.close()
+
+def test_db_connection():
+    """
+    Utilidad para verificar la conexión al inicio del servidor.
+    """
+    try:
         with engine.connect() as connection:
-            print("🟢 ¡ÉXITO! Conectado a la base de datos PostgreSQL en Docker.")
+            print(f"🟢 ¡ÉXITO! Conectado a la base de datos PostgreSQL en Docker.")
     except OperationalError as e:
-        print(f"🔴 ERROR: No se pudo conectar a la base de datos. Detalle: {e}")
+        print(f"🔴 ERROR: No se pudo conectar a la base de datos.")
